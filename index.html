@@ -1,0 +1,617 @@
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, User, CheckCircle2, AlertCircle, X, MessageCircle, Clock4, ExternalLink, Image as ImageIcon, Utensils, Plus } from 'lucide-react';
+
+// --- กิจกรรมพิเศษประจำวัน (สามารถเพิ่ม/แก้ไขได้ที่นี่) ---
+const DAILY_EVENTS = {
+  '2026-04-01': 'พิธีปฐมนิเทศ / มอบตัว',
+  '2026-04-04': 'วันพระ (แรม ๑๔ ค่ำ เดือน ๔)',
+  '2026-04-05': 'พิธีบรรพชาสามเณร',
+  '2026-04-12': 'วันพระ (ขึ้น ๘ ค่ำ เดือน ๕)',
+  '2026-04-13': 'กิจกรรมวันสงกรานต์',
+  '2026-04-19': 'วันพระ (ขึ้น ๑๕ ค่ำ เดือน ๕)',
+  '2026-04-20': 'พิธีลาสิกขา / มอบวุฒิบัตร',
+};
+
+// --- Initial Data (รองรับทั้งเจ้าภาพหลัก และ ผู้ที่นำมาถวายเอง) ---
+const INITIAL_BOOKINGS = {
+  '2026-04-01-breakfast': { mainHost: { status: 'booked', name: 'พระครูสังฆรักษ์ปรีดา ธีรกุโล' }, inPerson: [] },
+  '2026-04-01-lunch': { mainHost: { status: 'booked', name: 'พระครูสังฆรักษ์ปรีดา ธีรกุโล' }, inPerson: [] },
+  '2026-04-01-pana': { mainHost: { status: 'booked', name: 'พระครูสังฆรักษ์ปรีดา ธีรกุโล' }, inPerson: [] },
+  
+  '2026-04-02-breakfast': { mainHost: { status: 'booked', name: 'คุณพยอม พันธุ์พงศ์-ปรียาภา จันทร์เปล่ง' }, inPerson: [] },
+  '2026-04-02-lunch': { mainHost: { status: 'booked', name: 'คุณจิรา สุขแสง, คุณสมบูรณ์-ปัทมา สุขแสง' }, inPerson: [] },
+  '2026-04-02-pana': { mainHost: { status: 'booked', name: 'บริษัทแลคตาซอย' }, inPerson: [] },
+
+  '2026-04-03-breakfast': { mainHost: { status: 'booked', name: 'คุณพีรภาว์ วิภาคกิจอนันต์' }, inPerson: [] },
+  '2026-04-03-lunch': { mainHost: { status: 'booked', name: 'ชูชัย รังสิยานันท์' }, inPerson: [] },
+  '2026-04-03-pana': { mainHost: { status: 'booked', name: 'บริษัทแลคตาซอย' }, inPerson: [] },
+
+  '2026-04-04-breakfast': { mainHost: { status: 'booked', name: 'พัชรพล ชลิศราพงศ์' }, inPerson: [] },
+  '2026-04-04-lunch': { mainHost: { status: 'booked', name: 'พัชรพล ชลิศราพงศ์' }, inPerson: [] },
+  '2026-04-04-pana': { mainHost: { status: 'booked', name: 'พัชรพล ชลิศราพงศ์' }, inPerson: [] },
+
+  '2026-04-05-breakfast': { 
+    mainHost: { status: 'booked', name: 'ร้านอวิช.อลิน อุทิศบุญให้คุณแม่รัชนี นังนิมิตร' }, 
+    inPerson: [] 
+  },
+  '2026-04-05-lunch': { 
+    mainHost: { status: 'booked', name: 'ร้านข้าวมันไก่คุณย่าคนสวย และเพื่อนๆ' }, 
+    inPerson: [{ name: 'คุณสมชาย', menu: 'น้ำเต้าหู้ ปาท่องโก๋ 50 ชุด', phone: '0812345678' }] 
+  },
+};
+
+// --- ข้อมูลรายละเอียดและรูปภาพประจำวัน ---
+const DAILY_DETAILS = {
+  default: {
+    description: 'บรรยากาศการทำกิจกรรมและการบำเพ็ญบุญของสามเณรและผู้มีจิตศรัทธาในวันนี้ ขออนุโมทนาบุญกับทุกท่าน',
+    images: [
+      'https://images.unsplash.com/photo-1540304353841-39659b918af1?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1583095123989-136511874246?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1510007551061-0021b369cc80?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1610212595000-88d4076359e0?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1604085572502-a30ae3164dd6?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1590076215667-87ebffba4eb7?auto=format&fit=crop&w=400&q=80',
+    ],
+    externalLink: 'https://facebook.com/yourpage' // ใส่ลิงก์ Facebook หรือ Google Drive ที่นี่
+  },
+  '2026-04-05': {
+    description: 'บรรยากาศพิธีบรรพชาสามเณรภาคฤดูร้อนประจำปี ๒๕๖๙ ณ ศูนย์ปฏิบัติธรรมแก้วระนอง มีญาติโยมและผู้ปกครองมาร่วมอนุโมทนาบุญอย่างล้นหลาม',
+    images: [
+      'https://images.unsplash.com/photo-1540304353841-39659b918af1?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1583095123989-136511874246?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1510007551061-0021b369cc80?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1610212595000-88d4076359e0?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1604085572502-a30ae3164dd6?auto=format&fit=crop&w=400&q=80',
+      'https://images.unsplash.com/photo-1590076215667-87ebffba4eb7?auto=format&fit=crop&w=400&q=80',
+    ],
+    externalLink: 'https://drive.google.com/drive/folders/your-folder-id' // ใส่ลิงก์แยกแต่ละวันได้
+  }
+};
+
+const MEAL_TYPES = [
+  { id: 'breakfast', name: 'มื้อเช้า', time: '07:00 น.', price: 1000 },
+  { id: 'lunch', name: 'มื้อเพล', time: '11:00 น.', price: 1000 },
+  { id: 'pana', name: 'น้ำปานะ', time: '16:00 น.', price: 500 },
+];
+
+export default function App() {
+  const [bookings, setBookings] = useState(INITIAL_BOOKINGS);
+  const [dates, setDates] = useState([]);
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [bookingType, setBookingType] = useState('main'); // 'main' or 'inPerson'
+  const [selectedSlot, setSelectedSlot] = useState(null); 
+  const [modalStep, setModalStep] = useState(1);
+  
+  // Date Details Modal State
+  const [selectedDateForDetails, setSelectedDateForDetails] = useState(null);
+
+  // Form State
+  const [formData, setFormData] = useState({ hostName: '', phone: '', menu: '' });
+
+  useEffect(() => {
+    const generatedDates = [];
+    for (let i = 1; i <= 20; i++) {
+      const dateId = `2026-04-${i.toString().padStart(2, '0')}`;
+      generatedDates.push({
+        id: dateId,
+        label: `${i} เม.ย. 69`,
+        dayNumber: i,
+        event: DAILY_EVENTS[dateId] || null // ดึงข้อมูลกิจกรรมมาใส่ในวันที่
+      });
+    }
+    setDates(generatedDates);
+  }, []);
+
+  const handleOpenModal = (date, mealId, dateLabel, mealLabel, type, price) => {
+    setSelectedSlot({ date, mealId, dateLabel, mealLabel, price });
+    setBookingType(type);
+    setFormData({ hostName: '', phone: '', menu: '' });
+    setModalStep(1);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setTimeout(() => {
+      setModalStep(1);
+      setSelectedSlot(null);
+    }, 300);
+  };
+
+  const handleMainHostSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.hostName) return;
+
+    const slotKey = `${selectedSlot.date}-${selectedSlot.mealId}`;
+    setBookings(prev => ({
+      ...prev,
+      [slotKey]: {
+        ...prev[slotKey],
+        mainHost: { status: 'pending', name: formData.hostName }
+      }
+    }));
+    
+    window.open('https://line.me/ti/p/~@yourlineid', '_blank');
+    setModalStep(2); // Show pending notice
+  };
+
+  const handleInPersonSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.hostName || !formData.menu) return;
+
+    const slotKey = `${selectedSlot.date}-${selectedSlot.mealId}`;
+    const newInPersonEntry = {
+      name: formData.hostName,
+      menu: formData.menu,
+      phone: formData.phone
+    };
+
+    setBookings(prev => ({
+      ...prev,
+      [slotKey]: {
+        ...prev[slotKey],
+        inPerson: [...(prev[slotKey]?.inPerson || []), newInPersonEntry]
+      }
+    }));
+
+    setModalStep(3); // Show immediate success notice for in-person
+  };
+
+  // --- Components ---
+  const Header = () => (
+    <div className="relative pt-20 pb-12 px-6 text-center shadow-lg overflow-hidden flex flex-col justify-end min-h-[320px]">
+      {/* Background Image (เปลี่ยน URL รูปภาพตรงนี้เป็นรูปสถานที่จริงได้เลยครับ) */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: "url('https://images.unsplash.com/photo-1540304353841-39659b918af1?auto=format&fit=crop&w=1920&q=80')",
+          backgroundPosition: 'center 30%',
+          backgroundSize: 'cover'
+        }}
+      ></div>
+      
+      {/* Gradient Overlay (ทำเฟดจากภาพด้านบน ไล่ลงมาทับอักษรเพื่อให้ตัวหนังสือเด่น) */}
+      <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/20 via-orange-900/60 to-orange-600"></div>
+
+      <div className="relative z-20 max-w-2xl mx-auto mt-auto pt-8">
+        <h2 className="text-amber-200 font-medium tracking-wider mb-2 text-sm sm:text-base drop-shadow-md">ขอเชิญร่วมเป็นเจ้าภาพภัตตาหาร</h2>
+        <h1 className="text-2xl sm:text-4xl font-bold leading-tight mb-4 drop-shadow-lg text-white">
+          โครงการบรรพชาสามเณร<br/>ภาคฤดูร้อน ประจำปี 2569
+        </h1>
+        <p className="text-white flex items-center justify-center gap-2 text-sm sm:text-base drop-shadow-md font-medium">
+          <Calendar className="w-4 h-4" /> ณ ศูนย์ปฏิบัติธรรมแก้วระนอง
+        </p>
+        <p className="text-white/90 text-sm sm:text-base mt-1 drop-shadow-md">
+          ระหว่างวันที่ 1 – 20 เมษายน พ.ศ.2569
+        </p>
+      </div>
+    </div>
+  );
+
+  const SlotCard = ({ date, meal }) => {
+    const slotKey = `${date.id}-${meal.id}`;
+    const slotData = bookings[slotKey] || { mainHost: null, inPerson: [] };
+    
+    const isBooked = slotData.mainHost?.status === 'booked';
+    const isPending = slotData.mainHost?.status === 'pending';
+    const hasInPerson = slotData.inPerson && slotData.inPerson.length > 0;
+
+    return (
+      <div className={`relative flex flex-col p-4 rounded-xl border transition-all duration-300 h-full ${
+        isBooked ? 'bg-gradient-to-b from-green-50 to-emerald-50 border-green-200' :
+        isPending ? 'bg-gradient-to-b from-yellow-50 to-amber-50 border-amber-300' :
+        'bg-white border-gray-200'
+      } hover:shadow-md`}>
+        
+        {/* Header (Meal Time) */}
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h4 className="font-semibold text-gray-800 text-sm">{meal.name}</h4>
+            <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+              <Clock className="w-3 h-3" /> {meal.time}
+            </p>
+          </div>
+          {isBooked && (
+            <div className="bg-green-100 text-green-700 p-1.5 rounded-full" title="มีเจ้าภาพหลักแล้ว">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          )}
+          {isPending && (
+            <div className="bg-amber-100 text-amber-600 p-1.5 rounded-full" title="รอตรวจสอบสลิป">
+              <Clock4 className="w-4 h-4" />
+            </div>
+          )}
+        </div>
+
+        <div className="mt-auto flex flex-col gap-3">
+          {/* Main Host Section */}
+          <div>
+            {isBooked ? (
+              <div className="pt-2 border-t border-green-200/50">
+                <p className="text-[10px] uppercase font-bold text-green-600 mb-0.5">เจ้าภาพหลัก</p>
+                <p className="text-sm font-medium text-gray-800 leading-snug">
+                  {slotData.mainHost.name}
+                </p>
+              </div>
+            ) : isPending ? (
+              <div className="pt-2 border-t border-amber-300/50">
+                <p className="text-[10px] text-amber-700/80 mb-0.5 font-bold bg-amber-100 inline-block px-1.5 py-0.5 rounded">รอแอดมินยืนยัน</p>
+                <p className="text-sm font-medium text-gray-600 leading-snug opacity-70 italic mt-1">
+                  {slotData.mainHost.name}
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={() => handleOpenModal(date.id, meal.id, date.label, meal.name, 'main', meal.price)}
+                className="w-full py-2 px-2 bg-orange-50 border border-orange-500 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-500 hover:text-white transition-all flex items-center justify-center gap-1"
+              >
+                ร่วมบุญเป็นเจ้าภาพ
+              </button>
+            )}
+          </div>
+
+          {/* In-Person Section (รายชื่อผู้นำมาถวายเอง) */}
+          {(hasInPerson || isBooked || isPending) && (
+            <div className="pt-2 border-t border-gray-200/60">
+              {hasInPerson && (
+                <div className="mb-2 space-y-1.5">
+                  <p className="text-[10px] text-gray-500 font-semibold mb-1">ผู้ปวารณาถวายด้วยตนเอง:</p>
+                  {slotData.inPerson.map((person, idx) => (
+                    <div key={idx} className="bg-white/60 p-1.5 rounded text-xs border border-gray-100 leading-tight">
+                      <span className="font-semibold text-gray-800">{person.name}</span>
+                      <span className="text-gray-600 block mt-0.5 text-[11px]">- {person.menu}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <button
+                onClick={() => handleOpenModal(date.id, meal.id, date.label, meal.name, 'inPerson', meal.price)}
+                className="w-full py-1.5 px-2 bg-gray-50 border border-dashed border-gray-300 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-100 hover:border-gray-400 transition-all flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3 h-3" /> นำมาถวายเอง
+              </button>
+            </div>
+          )}
+
+          {/* If completely empty, show Add In-person button simply */}
+          {!isBooked && !isPending && !hasInPerson && (
+            <button
+              onClick={() => handleOpenModal(date.id, meal.id, date.label, meal.name, 'inPerson', meal.price)}
+              className="w-full py-1.5 px-2 bg-transparent text-gray-500 hover:text-gray-700 text-xs font-medium hover:bg-gray-100 rounded-lg transition-all flex items-center justify-center gap-1"
+            >
+              <Plus className="w-3 h-3" /> หรือนำมาถวายเอง
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const BookingModal = () => {
+    if (!isModalOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={closeModal}></div>
+
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative z-10 flex flex-col max-h-full">
+          {/* Header */}
+          <div className="bg-orange-50 px-6 py-4 border-b border-orange-100 flex justify-between items-center shrink-0 rounded-t-2xl">
+            <div>
+              <h3 className="font-semibold text-orange-800">
+                {bookingType === 'main' ? `ร่วมเป็นเจ้าภาพ ${selectedSlot?.price?.toLocaleString() || 1000} บาท` : 'แจ้งนำภัตตาหารมาถวายด้วยตนเอง'}
+              </h3>
+              <p className="text-sm text-orange-600">{selectedSlot?.dateLabel} • {selectedSlot?.mealLabel}</p>
+            </div>
+            <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 bg-white rounded-full p-1 shadow-sm transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-6 overflow-y-auto">
+            {/* Step 1: Main Host Form */}
+            {modalStep === 1 && bookingType === 'main' && (
+              <form onSubmit={handleMainHostSubmit} className="space-y-6">
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                  <p className="text-sm text-amber-800 text-center">ยอดร่วมทำบุญ</p>
+                  <p className="text-3xl font-bold text-amber-600 text-center mt-1">{selectedSlot?.price?.toLocaleString() || 1000} บาท</p>
+                </div>
+
+                <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4 flex flex-col items-center justify-center">
+                  <p className="text-sm font-semibold text-gray-800 mb-2">สแกน QR Code โอนเงินเข้าบัญชีวัด</p>
+                  <div className="w-28 h-28 bg-gray-50 flex items-center justify-center mb-2 border border-gray-100 p-2 relative">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=promptpay1234" alt="QR Code" className="w-full h-full opacity-30 mix-blend-multiply" />
+                    <p className="absolute text-[10px] text-gray-800 font-bold bg-white/90 px-1.5 py-0.5 rounded shadow-sm">ตัวอย่าง QR</p>
+                  </div>
+                  <p className="text-xs font-bold text-gray-800 text-center">ศูนย์ปฏิบัติธรรมแก้วระนอง</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">ธนาคารกรุงไทย XXX-X-XXXXX-X</p>
+                </div>
+
+                <div className="space-y-4 pt-2 border-t border-gray-100">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">รายนามเจ้าภาพ <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input type="text" required placeholder="เช่น ครอบครัวใจดี" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-sm" value={formData.hostName} onChange={(e) => setFormData({...formData, hostName: e.target.value})} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">เบอร์โทรศัพท์</label>
+                    <input type="tel" placeholder="08X-XXX-XXXX" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                  </div>
+                </div>
+
+                <button type="submit" disabled={!formData.hostName} className="w-full bg-[#00B900] hover:bg-[#00A000] disabled:bg-gray-300 text-white rounded-xl p-3.5 flex items-center justify-center gap-2 shadow-md">
+                  <MessageCircle className="w-5 h-5" />
+                  <span className="font-bold text-sm">แจ้งชื่อและส่งสลิปผ่าน LINE</span>
+                </button>
+              </form>
+            )}
+
+            {/* Step 1: In-Person Form */}
+            {modalStep === 1 && bookingType === 'inPerson' && (
+              <form onSubmit={handleInPersonSubmit} className="space-y-5 animate-in fade-in duration-300">
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-center mb-4">
+                  <Utensils className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                  <p className="text-sm text-blue-800 leading-relaxed">
+                    อนุโมทนาบุญครับ ท่านสามารถกรอกชื่อและเมนูอาหาร เพื่อให้เจ้าหน้าที่เตรียมจัดสถานที่รองรับได้อย่างเหมาะสมครับ
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">ชื่อ-นามสกุล / คณะผู้ถวาย <span className="text-red-500">*</span></label>
+                  <input type="text" required placeholder="เช่น คุณสมชาย และครอบครัว" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" value={formData.hostName} onChange={(e) => setFormData({...formData, hostName: e.target.value})} />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">เมนูอาหาร/เครื่องดื่ม <span className="text-red-500">*</span></label>
+                  <textarea required placeholder="เช่น ข้าวมันไก่ 50 กล่อง, ผลไม้รวม, น้ำผลไม้" rows="2" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm resize-none" value={formData.menu} onChange={(e) => setFormData({...formData, menu: e.target.value})}></textarea>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">เบอร์โทรศัพท์ (เก็บเป็นความลับ)</label>
+                  <input type="tel" required placeholder="08X-XXX-XXXX" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                  <p className="text-[11px] text-gray-400 mt-1">เพื่อความสะดวกในการประสานงานสถานที่</p>
+                </div>
+
+                <button type="submit" disabled={!formData.hostName || !formData.menu || !formData.phone} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold rounded-xl p-3.5 mt-2 transition-colors">
+                  ยืนยันการเพิ่มรายการ
+                </button>
+                
+                {/* --- ย้ายปุ่มติดต่อ LINE มาไว้ในหน้านี้แทน --- */}
+                <div className="pt-4 mt-2 border-t border-gray-100">
+                  <a
+                    href="https://line.me/ti/p/~@yourlineid"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2.5 px-2 bg-[#00B900]/5 text-[#009900] hover:bg-[#00B900]/15 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 border border-[#00B900]/20"
+                  >
+                    <MessageCircle className="w-5 h-5" /> แจ้งรายละเอียด / สอบถามสิ่งที่ขาดผ่าน LINE
+                  </a>
+                </div>
+              </form>
+            )}
+
+            {/* Step 2: Main Host Pending Notice */}
+            {modalStep === 2 && (
+              <div className="py-6 px-2 text-center animate-in zoom-in-95 duration-300">
+                <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Clock4 className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">รับเรื่องจองคิวแล้ว</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed text-sm">ระบบกำลังพาคุณไปยังแอปพลิเคชัน LINE<br/>กรุณาส่งภาพสลิปโอนเงินในแชทได้เลยครับ</p>
+                <button onClick={closeModal} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-3 rounded-xl transition-colors text-sm">ปิดหน้าต่างและกลับสู่ตาราง</button>
+              </div>
+            )}
+
+            {/* Step 3: In-Person Success Notice */}
+            {modalStep === 3 && (
+              <div className="py-6 px-2 text-center animate-in zoom-in-95 duration-300">
+                <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">บันทึกข้อมูลสำเร็จ</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed text-sm">
+                  รายนามและเมนูของท่านได้ถูกเพิ่มลงในตาราง<br/>เพื่อให้เจ้าหน้าที่จัดเตรียมสถานที่เรียบร้อยแล้ว<br/>ขออนุโมทนาบุญครับ
+                </p>
+                <button onClick={closeModal} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-colors text-sm">กลับสู่ตาราง</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const DateDetailsModal = () => {
+    if (!selectedDateForDetails) return null;
+    
+    const details = DAILY_DETAILS[selectedDateForDetails.id] || DAILY_DETAILS.default;
+    const eventName = selectedDateForDetails.event || 'ภาพบรรยากาศประจำวัน';
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setSelectedDateForDetails(null)}></div>
+        
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative z-10 flex flex-col max-h-full overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-blue-50 px-6 py-4 border-b border-blue-100 flex justify-between items-center shrink-0">
+            <div>
+              <h3 className="font-bold text-blue-900 text-lg flex items-center gap-2">
+                 <Calendar className="w-5 h-5 text-blue-600"/> รายละเอียดกิจกรรม
+              </h3>
+              <p className="text-sm text-blue-700 mt-0.5">{selectedDateForDetails.label}</p>
+            </div>
+            <button onClick={() => setSelectedDateForDetails(null)} className="text-gray-400 hover:text-gray-600 bg-white rounded-full p-1.5 shadow-sm transition-colors border border-gray-200">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-6 overflow-y-auto">
+            <div className="mb-6">
+              <h4 className="text-xl font-bold text-gray-800 mb-2">{eventName}</h4>
+              <p className="text-gray-600 text-sm leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">
+                {details.description}
+              </p>
+            </div>
+            
+            <h5 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-orange-500" /> แกลเลอรีภาพ ({details.images.length} ภาพ)
+            </h5>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {details.images.map((img, i) => (
+                <div key={i} className="aspect-square rounded-xl overflow-hidden shadow-sm border border-gray-100 group cursor-pointer bg-gray-100">
+                  <img src={img} alt={`ภาพกิจกรรม ${i+1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                </div>
+              ))}
+            </div>
+
+            {/* --- ปุ่มลิงก์ไป Google Drive หรือ Facebook --- */}
+            {details.externalLink && (
+              <div className="mt-8 text-center border-t border-gray-100 pt-6">
+                <p className="text-sm text-gray-500 mb-3">ท่านสามารถรับชมภาพความประทับใจเพิ่มเติมได้ที่นี่</p>
+                <a
+                  href={details.externalLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all shadow-md shadow-blue-600/20 w-full sm:w-auto"
+                >
+                  <ExternalLink className="w-5 h-5" /> ชมภาพทั้งหมด (Google Drive / Facebook)
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FDFBF7] font-sans flex flex-col">
+      <Header />
+
+      <main className="flex-grow max-w-5xl mx-auto px-4 py-8 sm:py-12 relative z-20 -mt-8">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-5 flex gap-4 items-start mb-8">
+          <AlertCircle className="w-6 h-6 text-orange-500 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-gray-800 mb-1">ขั้นตอนการร่วมเป็นเจ้าภาพ</h3>
+            <ul className="text-sm text-gray-600 leading-relaxed list-decimal ml-4 space-y-1">
+              <li><strong>ร่วมบุญเป็นเจ้าภาพ</strong> : สแกนโอนเงิน กรอกชื่อ และกดส่งสลิปผ่าน LINE</li>
+              <li><strong>นำมาถวายเอง</strong> : กรอกชื่อและเมนูอาหาร ข้อมูลจะขึ้นในตารางทันที (เพิ่มได้หลายท่านในมื้อเดียวกัน)</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="hidden md:grid md:grid-cols-4 gap-4 mb-4 px-4">
+          <div className="font-semibold text-gray-500 text-center">วันที่ / กิจกรรม</div>
+          <div className="font-semibold text-orange-800 text-center bg-orange-100/50 py-2 rounded-lg">มื้อเช้า</div>
+          <div className="font-semibold text-orange-800 text-center bg-orange-100/50 py-2 rounded-lg">มื้อเพล</div>
+          <div className="font-semibold text-orange-800 text-center bg-orange-100/50 py-2 rounded-lg">น้ำปานะ</div>
+        </div>
+
+        <div className="space-y-6 md:space-y-3">
+          {dates.map((date) => (
+            <div key={date.id} className="bg-white md:bg-transparent rounded-2xl shadow-sm border md:border-none border-gray-100 overflow-hidden md:shadow-none p-4 md:p-0">
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4 items-stretch">
+                
+                {/* Date Box (กล่องวันที่) */}
+                <div className={`relative flex flex-col items-center justify-center bg-white border ${date.event ? 'border-blue-200 bg-blue-50/30' : 'border-gray-200'} rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow`}>
+                  
+                  <div className="md:hidden w-full border-b border-gray-100 pb-2 mb-3 flex justify-between items-center">
+                     <h3 className="text-lg font-bold text-orange-800">{date.label}</h3>
+                     <span className="bg-orange-100 text-orange-700 text-xs px-2.5 py-1 rounded-full font-medium">เมษายน</span>
+                  </div>
+
+                  <div className="flex md:flex-col items-center justify-center gap-2 md:gap-0">
+                    <span className="text-4xl md:text-5xl font-bold text-orange-500">{date.dayNumber}</span>
+                    <span className="text-sm text-gray-500 font-medium md:mt-2 hidden md:block">เมษายน 2569</span>
+                  </div>
+                  
+                  <div className="mt-auto w-full flex flex-col items-center">
+                    {date.event && (
+                      <div className="mt-3 pt-3 w-full border-t border-blue-100 text-center">
+                        <p className="text-xs font-bold text-blue-700 leading-tight">
+                          📌 {date.event}
+                        </p>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => setSelectedDateForDetails(date)}
+                      className="mt-3 w-full py-1.5 px-2 bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-orange-600 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1 border border-gray-200"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" /> ชมภาพกิจกรรม
+                    </button>
+                  </div>
+                </div>
+
+                {MEAL_TYPES.map((meal) => (
+                  <SlotCard key={`${date.id}-${meal.id}`} date={date} meal={meal} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </main>
+
+      {/* --- Gallery Section --- */}
+      <section className="bg-white py-12 sm:py-16 mt-8 border-t border-gray-100">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex items-center gap-3 mb-8">
+            <ImageIcon className="w-6 h-6 text-orange-500" />
+            <h2 className="text-2xl font-bold text-gray-800">ภาพกิจกรรมงานบุญ</h2>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
+              <img src="https://images.unsplash.com/photo-1540304353841-39659b918af1?auto=format&fit=crop&w=400&q=80" alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            </div>
+            <div className="aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
+              <img src="https://images.unsplash.com/photo-1583095123989-136511874246?auto=format&fit=crop&w=400&q=80" alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            </div>
+            <div className="aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
+              <img src="https://images.unsplash.com/photo-1510007551061-0021b369cc80?auto=format&fit=crop&w=400&q=80" alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            </div>
+            <div className="aspect-square rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
+              <img src="https://images.unsplash.com/photo-1610212595000-88d4076359e0?auto=format&fit=crop&w=400&q=80" alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- Footer Section --- */}
+      <footer className="bg-slate-900 text-slate-300 py-12 border-t-4 border-orange-500">
+        <div className="max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h3 className="text-white text-lg font-bold mb-4">ศูนย์ปฏิบัติธรรมแก้วระนอง</h3>
+            <p className="text-sm leading-relaxed text-slate-400 max-w-sm">
+              ขออนุโมทนาบุญกับท่านทานบดีทุกท่าน ที่ร่วมเป็นเจ้าภาพถวายภัตตาหารแด่พระภิกษุสามเณร 
+              ขออานิสงส์แห่งทานนี้จงดลบันดาลให้ท่านและครอบครัวเจริญด้วยอายุ วรรณะ สุขะ พละ ปฏิภาณ ธนสารสมบัติ ตลอดกาลนานเทอญ.
+            </p>
+          </div>
+          
+          <div>
+            <h3 className="text-white text-lg font-bold mb-4">ติดต่อสอบถาม</h3>
+            <ul className="space-y-3">
+              <li>
+                <a href="#" className="hover:text-orange-400 transition-colors flex items-center gap-2 text-sm">
+                  <ExternalLink className="w-4 h-4" /> Facebook: โครงการบรรพชาสามเณร
+                </a>
+              </li>
+              <li>
+                <a href="https://line.me/ti/p/~@yourlineid" target="_blank" rel="noreferrer" className="hover:text-[#00B900] transition-colors flex items-center gap-2 text-sm">
+                  <MessageCircle className="w-4 h-4" /> LINE Official: @yourlineid
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </footer>
+
+      <BookingModal />
+      <DateDetailsModal />
+    </div>
+  );
+}
